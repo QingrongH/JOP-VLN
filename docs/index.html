@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JOP-VLN: Joint On-and-Off Policy Learning for Vision-and-Language Navigation</title>
+<meta name="description" content="JOP-VLN: Joint On-and-Off Policy Learning for Vision-and-Language Navigation">
+<style>
+  :root {
+    --accent: #2563eb;
+    --text: #1a1a1a;
+    --muted: #555;
+    --bg: #ffffff;
+    --soft: #f5f7fa;
+    --border: #e3e8ef;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+
+  header {
+    text-align: center;
+    padding: 56px 20px 36px;
+    border-bottom: 1px solid var(--border);
+  }
+  h1 {
+    font-size: 1.9rem;
+    margin: 0 0 6px;
+    line-height: 1.3;
+  }
+  h1 .method { color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin: 0 0 22px; }
+  .authors { font-size: 1.05rem; margin: 6px 0; }
+  .affil { color: var(--muted); font-size: 0.95rem; margin: 0 0 22px; }
+
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--text); color: #fff;
+    text-decoration: none; padding: 9px 18px;
+    border-radius: 999px; font-size: 0.95rem; font-weight: 500;
+    transition: opacity .15s;
+  }
+  .btn:hover { opacity: .82; }
+  .btn.alt { background: var(--accent); }
+
+  section { padding: 40px 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  h2 { font-size: 1.35rem; margin: 0 0 16px; }
+
+  .teaser { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
+  figure { margin: 0; }
+  figcaption { color: var(--muted); font-size: 0.9rem; text-align: center; margin-top: 10px; }
+
+  .demo-video {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #000;
+    display: block;
+  }
+
+  /* three-stage pipeline: left column stacks stage1+stage2, right column = tall stage3.
+     stage3 sets the row height; stage2's image grows so its bottom aligns with stage3's. */
+  .pipeline {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    align-items: stretch;
+    padding-bottom: 56px; /* reserve room for the absolutely-positioned captions below images */
+  }
+  .pipeline .col-left {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  /* stage1: natural aspect ratio, fixed at the top */
+  .pipeline .col-left .stage.s1 {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .pipeline .col-left .stage.s1 img {
+    width: 100%;
+    aspect-ratio: 1463 / 1380;
+    object-fit: contain;
+    object-position: center;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    display: block;
+    background: var(--soft);
+  }
+  /* stage2: grows to fill remaining height; image bottom aligns with stage3's image.
+     caption is taken out of flow so only the IMAGE determines the aligned bottom. */
+  .pipeline .col-left .stage.s2 {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+  }
+  .pipeline .col-left .stage.s2 img {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    object-fit: contain;
+    object-position: bottom;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    display: block;
+    background: var(--soft);
+  }
+  .pipeline .col-left .stage.s2 .cap {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 8px;
+  }
+  .pipeline .col-right {
+    display: flex;
+    flex-direction: column;
+  }
+  /* stage3's IMAGE drives the row height (caption taken out of flow), so the two
+     image bottoms — stage2 and stage3 — line up exactly. */
+  .pipeline .col-right .stage {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .pipeline .col-right .stage img {
+    width: 100%;
+    aspect-ratio: 1481 / 2633;
+    object-fit: contain;
+    object-position: top;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    display: block;
+    background: var(--soft);
+  }
+  .pipeline .col-right .stage .cap {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 8px;
+  }
+  .stage .cap {
+    color: var(--muted); font-size: 0.85rem; margin-top: 8px;
+    flex-shrink: 0;
+  }
+  .stage .cap b { color: var(--text); }
+  @media (max-width: 680px) {
+    .pipeline { grid-template-columns: 1fr; padding-bottom: 0; }
+    .pipeline .stage img { object-fit: contain !important; flex: none !important;
+      aspect-ratio: auto !important; height: auto; }
+    .pipeline .col-left .stage { flex: none !important; }
+    .pipeline .stage .cap { position: static !important; }
+  }
+
+  p { margin: 0 0 14px; }
+
+  .bibtex {
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.85rem;
+    white-space: pre;
+  }
+
+  footer {
+    text-align: center; color: var(--muted);
+    font-size: 0.85rem; padding: 30px 20px 50px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1><span class="method">JOP-VLN</span>: Joint On-and-Off Policy Learning<br>for Vision-and-Language Navigation</h1>
+    <p class="authors">Qingrong He, Lin Zhao, Kevin Zheng, Liang Lin<sup>&#9993;</sup></p>
+    <p class="affil">Joy Future Academy</p>
+    <!-- <p class="affil"><sup>&#9993;</sup> Corresponding author</p> -->
+    <div class="btns">
+      <a class="btn" href="#" target="_blank" rel="noopener">📄 Paper</a>
+      <!-- <a class="btn alt" href="#" target="_blank" rel="noopener">💻 Code (coming soon)</a> -->
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <h2>Abstract</h2>
+    <p>
+      Vision-and-Language Navigation (VLN) necessitates an embodied agent to navigate in the physical world by adhering to natural language instructions. Recent advancements in Vision-Language Models (VLM) have propelled the development of VLM-based VLN methods with two predominant paradigms: (1) imitation learning (IL) on expert demonstrations, followed by the Dataset Aggregation (DAgger) algorithm to bolster error recovery capabilities; (2) reinforcement learning (RL) driven by verifiable rewards to enhance reasoning and exploration. A notable gap is the absence of integration between these two distinct paradigms. This paper introduces <strong>JOP-VLN</strong>, a novel VLN framework that synergistically combines off-policy imitation learning and on-policy exploration within a three-stage training pipeline. Initially, IL is employed on expert demonstrations to acquire basic navigation skills. Subsequently, the DAgger algorithm is utilized to generate heuristic exploration trajectories, which are then used for imitation learning to improve error recovery capabilities. Finally, a joint on-and-off policy learning framework is implemented, featuring high-entropy trajectory sampling to enhance RL training efficiency and an error-correction-prioritized trajectory sorting strategy for effective error correction. Extensive experiments demonstrate the efficacy of JOP-VLN, achieving success rates of 69.9% and 68.0% on the VLN-CE R2R and RxR benchmarks, respectively, setting a new state-of-the-art on R2R.
+    </p>
+  </section>
+
+  <section>
+    <h2>Video</h2>
+    <video class="demo-video" controls preload="metadata" playsinline>
+      <source src="video.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+  </section>
+
+  <section>
+    <h2>Method: A Three-Stage Training Pipeline</h2>
+    <p>
+      JOP-VLN is trained in three progressive stages. The agent first learns basic
+      navigation through multi-task imitation learning, then improves error recovery via
+      imitation on DAgger-collected trajectories, and finally jointly optimizes on-policy
+      RL (GRPO) and off-policy IL under the CHORD objective.
+    </p>
+    <div class="pipeline">
+      <div class="col-left">
+        <figure class="stage s1">
+          <img src="figs/stage1.png" alt="Stage 1: multi-task training">
+          <p class="cap"><b>Stage 1.</b> Multi-task training — action prediction and
+            trajectory summarization.</p>
+        </figure>
+        <figure class="stage s2">
+          <img src="figs/stage2.png" alt="Stage 2: IL on DAgger trajectories">
+          <p class="cap"><b>Stage 2.</b> Imitation learning on DAgger-collected
+            trajectories to improve error recovery.</p>
+        </figure>
+      </div>
+      <div class="col-right">
+        <figure class="stage">
+          <img src="figs/stage3.png" alt="Stage 3: joint on-and-off policy learning">
+          <p class="cap"><b>Stage 3.</b> Joint on-and-off policy learning, coupling
+            on-policy GRPO on high-entropy samples with off-policy IL under an
+            error-correction-prioritized sorting strategy.</p>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Results on VLN-CE (Val-Unseen)</h2>
+    <figure>
+      <img src="figs/table1.png"
+           alt="Table 1: Comparison with state-of-the-art methods on VLN-CE R2R and RxR Val-Unseen"
+           style="width:100%;border:1px solid var(--border);border-radius:8px;background:var(--soft);display:block;">
+      <figcaption>
+        Comparison with state-of-the-art methods on VLN-CE R2R and RxR Val-Unseen. Observation
+        encoder inputs include panoramic (Pano.), odometry (Odo.), depth (Depth), and single
+        RGB (S.RGB). * denotes methods using the waypoint predictor.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>BibTeX</h2>
+    <div class="bibtex">@inproceedings{jopvln2026,
+  title     = {JOP-VLN: Joint On-and-Off Policy Learning for Vision-and-Language Navigation},
+  author    = {Qingrong He and Lin Zhao and Duo Zheng and Liang Lin},
+  booktitle = {IROS},
+  year      = {2026}
+}</div>
+  </section>
+
+</div>
+
+</body>
+</html>
